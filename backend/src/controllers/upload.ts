@@ -1,6 +1,9 @@
+import fs from 'fs'
 import { NextFunction, Request, Response } from 'express'
 import { constants } from 'http2'
 import BadRequestError from '../errors/bad-request-error'
+
+const MIN_FILE_SIZE = 2 * 1024
 
 export const uploadFile = async (
     req: Request,
@@ -9,6 +12,10 @@ export const uploadFile = async (
 ) => {
     if (!req.file) {
         return next(new BadRequestError('Файл не загружен'))
+    }
+    if (req.file.size <= MIN_FILE_SIZE) {
+        fs.unlinkSync(req.file.path)
+        return next(new BadRequestError('Файл слишком маленький'))
     }
     try {
         const fileName = process.env.UPLOAD_PATH

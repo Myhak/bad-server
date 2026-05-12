@@ -33,6 +33,9 @@ export const getOrders = async (
 
         const filters: FilterQuery<Partial<IOrder>> = {}
 
+        if (status !== undefined && typeof status !== 'string') {
+            return next(new BadRequestError('Недопустимый параметр запроса'))
+        }
         if (typeof status === 'string') {
             filters.status = status
         }
