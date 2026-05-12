@@ -51,7 +51,7 @@ app.use('/auth/register', authLimiter)
 const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
     getSecret: () => process.env.CSRF_SECRET || 'csrf-secret-dev',
     getSessionIdentifier: (req) => req.cookies?.refreshToken || '',
-    cookieName: 'csrf-token',
+    cookieName: '_csrf',
     cookieOptions: { sameSite: 'lax', secure: false, httpOnly: true },
     size: 64,
     getCsrfTokenFromRequest: (req) => req.headers['x-csrf-token'] as string,
