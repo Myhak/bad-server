@@ -4,6 +4,7 @@ import cors from 'cors'
 import 'dotenv/config'
 import express, { json, urlencoded } from 'express'
 import rateLimit from 'express-rate-limit'
+import { doubleCsrf } from 'csrf-csrf'
 import mongoose from 'mongoose'
 import path from 'path'
 import { DB_ADDRESS } from './config'
@@ -44,6 +45,23 @@ const authLimiter = rateLimit({
 app.use(generalLimiter)
 app.use('/auth/login', authLimiter)
 app.use('/auth/register', authLimiter)
+
+const { generateToken, doubleCsrfProtection } = doubleCsrf({
+    getSecret: () => process.env.CSRF_SECRET || 'csrf-secret-dev',
+    cookieName: 'csrf-token',
+    cookieOptions: { sameSite: 'lax', secure: false, httpOnly: true },
+    size: 64,
+    getTokenFromRequest: (req) => req.headers['x-csrf-token'] as string,
+})
+
+app.get('/auth/csrf-token', (req, res) => {
+    const token = generateToken(req, res)
+    res.json({ csrfToken: token })
+})
+
+app.use('/auth/token', doubleCsrfProtection)
+app.use('/auth/logout', doubleCsrfProtection)
+app.use('/auth/me', doubleCsrfProtection)
 
 app.options('*', cors(corsOptions))
 app.use(routes)
