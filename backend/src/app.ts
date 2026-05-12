@@ -1,8 +1,11 @@
 import { errors } from 'celebrate'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
+import { doubleCsrf } from 'csrf-csrf'
 import 'dotenv/config'
 import express, { json, urlencoded } from 'express'
+import rateLimit from 'express-rate-limit'
+import helmet from 'helmet'
 import mongoose from 'mongoose'
 import path from 'path'
 import { DB_ADDRESS } from './config'
@@ -13,18 +16,57 @@ import routes from './routes'
 const { PORT = 3000 } = process.env
 const app = express()
 
+app.use(helmet())
 app.use(cookieParser())
 
-app.use(cors())
-// app.use(cors({ origin: ORIGIN_ALLOW, credentials: true }));
-// app.use(express.static(path.join(__dirname, 'public')));
+const corsOptions = {
+    origin: process.env.ORIGIN_ALLOW || 'http://localhost',
+    credentials: true,
+}
+app.use(cors(corsOptions))
 
 app.use(serveStatic(path.join(__dirname, 'public')))
 
-app.use(urlencoded({ extended: true }))
-app.use(json())
+app.use(urlencoded({ extended: true, limit: '10kb' }))
+app.use(json({ limit: '10kb' }))
 
-app.options('*', cors())
+const generalLimiter = rateLimit({
+    windowMs: 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
+const authLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
+app.use(generalLimiter)
+app.use('/auth/login', authLimiter)
+app.use('/auth/register', authLimiter)
+
+const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
+    getSecret: () => process.env.CSRF_SECRET || 'csrf-secret-dev',
+    getSessionIdentifier: (req) => req.cookies?.refreshToken || '',
+    cookieName: '_csrf',
+    cookieOptions: { sameSite: 'lax', secure: false, httpOnly: true },
+    size: 64,
+    getCsrfTokenFromRequest: (req) => req.headers['x-csrf-token'] as string,
+})
+
+app.get('/auth/csrf-token', (req, res) => {
+    const token = generateCsrfToken(req, res)
+    res.json({ csrfToken: token })
+})
+
+app.use('/auth/token', doubleCsrfProtection)
+app.use('/auth/logout', doubleCsrfProtection)
+app.use('/auth/me', doubleCsrfProtection)
+
+app.options('*', cors(corsOptions))
 app.use(routes)
 app.use(errors())
 app.use(errorHandler)
