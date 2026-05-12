@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { constants } from 'http2'
 import { Error as MongooseError } from 'mongoose'
 import { join } from 'path'
+import xss from 'xss'
 import BadRequestError from '../errors/bad-request-error'
 import ConflictError from '../errors/conflict-error'
 import NotFoundError from '../errors/not-found-error'
@@ -42,7 +43,6 @@ const createProduct = async (
     try {
         const { description, category, price, title, image } = req.body
 
-        // Переносим картинку из временной папки
         if (image) {
             movingFile(
                 image.fileName,
@@ -52,11 +52,11 @@ const createProduct = async (
         }
 
         const product = await Product.create({
-            description,
+            description: xss(description),
             image,
-            category,
+            category: xss(category),
             price,
-            title,
+            title: xss(title),
         })
         return res.status(constants.HTTP_STATUS_CREATED).send(product)
     } catch (error) {
@@ -81,9 +81,8 @@ const updateProduct = async (
 ) => {
     try {
         const { productId } = req.params
-        const { image } = req.body
+        const { image, title, description, category, price } = req.body
 
-        // Переносим картинку из временной папки
         if (image) {
             movingFile(
                 image.fileName,
@@ -96,9 +95,11 @@ const updateProduct = async (
             productId,
             {
                 $set: {
-                    ...req.body,
-                    price: req.body.price ? req.body.price : null,
-                    image: req.body.image ? req.body.image : undefined,
+                    ...(title !== undefined && { title: xss(title) }),
+                    ...(description !== undefined && { description: xss(description) }),
+                    ...(category !== undefined && { category: xss(category) }),
+                    price: price !== undefined ? price || null : undefined,
+                    image: image || undefined,
                 },
             },
             { runValidators: true, new: true }
