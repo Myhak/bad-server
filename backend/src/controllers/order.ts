@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { FilterQuery, Error as MongooseError, Types } from 'mongoose'
+import xss from 'xss'
 import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
 import Order, { IOrder } from '../models/order'
@@ -313,11 +314,11 @@ export const createOrder = async (
             totalAmount: total,
             products: items,
             payment,
-            phone,
-            email,
-            comment,
+            phone: xss(phone),
+            email: xss(email),
+            comment: comment ? xss(comment) : comment,
             customer: userId,
-            deliveryAddress: address,
+            deliveryAddress: xss(address),
         })
         const populateOrder = await newOrder.populate(['customer', 'products'])
         await populateOrder.save()
