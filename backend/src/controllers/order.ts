@@ -112,7 +112,8 @@ export const getOrders = async (
 
         const sort: { [key: string]: any } = {}
 
-        if (sortField && sortOrder) {
+        const allowedSortFields = ['createdAt', 'totalAmount', 'orderNumber', 'status']
+        if (sortField && sortOrder && allowedSortFields.includes(sortField as string)) {
             sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
         }
 
